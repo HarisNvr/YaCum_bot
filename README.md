@@ -10,17 +10,17 @@
 ## Установка
 - Клонируйте и перейдите в репозиторий:
 ```
-$ git clone https://github.com/HarisNvr/YaCum_bot.git
-$ cd homework-status-bot
+git clone https://github.com/HarisNvr/YaCum_bot.git
+cd homework-status-bot
 ```
 - Создайте и активируйте виртуальное окружение:
 ```
-$ python -m venv venv
-$ source venv/bin/activate
+python -m venv venv
+source venv/bin/activate
 ```
 - Установите зависимости:
 ```
-$ pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 - Создайте файл .env в корневом каталоге и добавьте свои токены:
 ```
@@ -32,7 +32,7 @@ TELEGRAM_CHAT_ID=id_вашего_аккаунта
 ## Использование
 - Запустите бота:
 ```
-$ python homework.py
+python homework.py
 ```
 Бот начнет проверять статус ваших домашних заданий и будет отправлять вам уведомления в ваш Telegram-чат.
 
