@@ -5,32 +5,35 @@ from http import HTTPStatus
 from os import getenv
 
 import requests
-import telegram
+from telebot import TeleBot
+from telebot.apihelper import ApiTelegramException
 from dotenv import load_dotenv
 
 load_dotenv()
 
-PRACTICUM_TOKEN = getenv('YaCum_TOKEN')
-TELEGRAM_TOKEN = getenv('TG_TOKEN')
-TELEGRAM_CHAT_ID = getenv('CHAT_ID')
+PRACTICUM_TOKEN = getenv('PRACTICUM_TOKEN')
+TELEGRAM_BOT_TOKEN = getenv('TELEGRAM_BOT_TOKEN')
+TELEGRAM_CHAT_ID = getenv('TELEGRAM_CHAT_ID')
 
 RETRY_PERIOD = 600
+TIMESTAMP = int(time.time())
+
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
 HOMEWORK_VERDICTS = {
-    'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
-    'reviewing': 'Работа взята на проверку ревьюером.',
-    'rejected': 'Работа проверена: у ревьюера есть замечания.'
+    'approved': '<b>Работа проверена:</b> ревьюеру всё понравилось. Ура!',
+    'reviewing': '<b>Работа взята на проверку ревьюером.</b>',
+    'rejected': '<b>Работа проверена:</b> у ревьюера есть замечания.'
 }
 
 
 def check_tokens():
     """Check if all essential tokens are present."""
-    SOURCE = ('PRACTICUM_TOKEN', 'TELEGRAM_TOKEN', 'TELEGRAM_CHAT_ID')
+    source = ('PRACTICUM_TOKEN', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID')
     absence_tokens = []
 
-    for token in SOURCE:
+    for token in source:
         if not globals()[token]:
             absence_tokens.append(token)
 
@@ -89,24 +92,26 @@ def parse_status(homework):
 
     homework_name = homework['homework_name']
     homework_status = homework['status']
+    reviewer_comment = homework['reviewer_comment']
 
     if homework_status not in HOMEWORK_VERDICTS:
         raise KeyError(f'В ответе API домашки статус ДЗ: {homework_status} '
                        '- не соответствует ГОСТу')
 
     logging.debug(f'Новый статус по ДЗ: {homework_name}')
-    return ('Изменился статус проверки работы '
-            f'"{homework_name}".\n\n{HOMEWORK_VERDICTS[homework_status]}')
+    return ('<b>Изменился статус проверки работы:</b> '
+            f'\n\n"{homework_name}".\n\n{HOMEWORK_VERDICTS[homework_status]}'
+            f'\n\n<b>Комментарий ревьюера:</b> \n\n<i>{reviewer_comment}</i>')
 
 
 def send_message(bot, message):
     """Send current Homework status for sending to user."""
     logging.debug('Старт отправки ответа API пользователю')
     try:
-        bot.send_message(TELEGRAM_CHAT_ID, message)
+        bot.send_message(TELEGRAM_CHAT_ID, message, parse_mode='html')
         logging.debug('Бот отправил сообщение, текст: '
                       f'{message}')
-    except telegram.TelegramError as error:
+    except ApiTelegramException as error:
         logging.error('При отправке сообщения пользователю '
                       f'произошла ошибка: {error}')
 
@@ -115,13 +120,12 @@ def main():
     """Main bot logic body."""
     check_tokens()
 
-    bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    timestamp = int(time.time())
+    bot = TeleBot(TELEGRAM_BOT_TOKEN)
     last_error = None
 
     while True:
         try:
-            response = get_api_answer(timestamp)
+            response = get_api_answer(TIMESTAMP)
             homeworks = check_response(response)
             if homeworks:
                 homework_info = parse_status(homeworks[0])
@@ -129,7 +133,6 @@ def main():
             else:
                 logging.debug('Ответ API не вернул новой информации/статусов')
             last_error = None
-            timestamp = int(time.time())
         except Exception as error:
             logging.error(f'Сбой в работе Бота: {error}')
             if last_error != error:
